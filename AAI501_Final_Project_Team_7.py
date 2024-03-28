@@ -8,7 +8,7 @@ import seaborn as sb
 import numpy as nump
 import statsmodels.formula.api as sm
 import matplotlib.pyplot as plot
-from collections import Counter
+import nltk
 
 # pull the data locally (data from http://archive.ics.uci.edu/dataset/462/drug+review+dataset+drugs+com)
 AllDataTrain = pd.read_csv(".\\drugsComTrain_raw.tsv", sep = "\t")
@@ -36,3 +36,19 @@ print(AllDataTrain["rating"].describe())
 print("\nUseful count description")
 print(AllDataTrain["usefulCount"].describe())
 
+#AllDataTest = pd.read_csv(".\\drugsComTest_raw.tsv", sep = "\t")
+
+### Start doing NLP (can also refactor and encapsulate this later) ###
+
+# Some of this code based on the following:
+# Sarkar, D. (2019). Text Analytics with Python: A Practitioner's Guide to Natural Language Processing. Apress.
+from normalization import normalize_corpus
+
+nltk.download('stopwords')
+StopWordList = nltk.corpus.stopwords.words("english")
+StopWordList.remove("no")    # keep negation
+StopWordList.remove("not")
+
+NormCorpus = normalize_corpus(corpus = AllDataTrain["review"])
+AllDataTrain["cleanReview"] = NormCorpus
+print(str(AllDataTrain["review", "cleanReview"].head(20)))
