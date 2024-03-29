@@ -9,32 +9,204 @@ import numpy as nump
 import statsmodels.formula.api as sm
 import matplotlib.pyplot as plot
 import nltk
+import re
+import unicodedata
+from bs4 import BeautifulSoup
 
 # pull the data locally (data from http://archive.ics.uci.edu/dataset/462/drug+review+dataset+drugs+com)
 AllDataTrain = pd.read_csv(".\\drugsComTrain_raw.tsv", sep = "\t")
-print(str(AllDataTrain.head()))
-print(str(AllDataTrain.shape))
+#print(str(AllDataTrain.head()))
+#print(str(AllDataTrain.shape))
 
-### Exploratory Data Analysis (can refactor into functions later) ###
+# Strip out HTML tags
+# based on pages 118 - 119 of
+# Sarkar, D. (2019). Text Analytics with Python: A Practitioner's Guide to Natural Language Processing. Apress.
+def StripHtmlTags(Text):
+    Soup = BeautifulSoup(Text, "html.parser")
+    [s.extract() for s in Soup(["iframe", "script"])]
+    StrippedText = Soup.getText()
+    StrippedText = re.sub(r"[\r|\n|\r\n]+", "\n", StrippedText)
+    return StrippedText
 
-#construct the historgram
-plot.hist(AllDataTrain["rating"], density = False, bins = 10)
-plot.ylabel('Rating (number of stars)')
-plot.xlabel('Number of occurrences')
-plot.title('Histogram all drug ratings')
-#plot.show() #need in order to show when running in the console
+# based on pages 135 of
+# Sarkar, D. (2019). Text Analytics with Python: A Practitioner's Guide to Natural Language Processing. Apress.
+def RemoveAccentedChars(Text):
+    Text = unicodedata.normalize("NFKD", Text).encode("ascii", "ignore").decode("utf-8", "ignore")
+    return Text
 
-plot.hist(AllDataTrain["usefulCount"], density = False, bins = 50)
-plot.ylabel('Useful count (number of likes)')
-plot.xlabel('Number of occurrences')
-plot.title('Histogram all drug useful counts')
-#plot.show() #need in order to show when running in the console
+# based on pages 138 of
+# Sarkar, D. (2019). Text Analytics with Python: A Practitioner's Guide to Natural Language Processing. Apress.
+def RemoveSpecialChars(Text, RemoveDigits = False):
+    Pattern = r"[^a-zA-z0-9\s]" if not RemoveDigits else r"[^a-zA-z\s]"
+    Text = re.sub(Pattern, "", Text)
+    return Text
 
-#n, mean, standard deviation, and five number summary (min, lower quartile, median, upper quartile, max)
-print("Ratings description")
-print(AllDataTrain["rating"].describe())
-print("\nUseful count description")
-print(AllDataTrain["usefulCount"].describe())
+# Taken from the following site on March 29, 2024 0241 Zulu
+# https://github.com/dipanjanS/text-analytics-with-python/blob/master/New-Second-Edition/Ch03%20-%20Processing%20and%20Understanding%20Text/contractions.py
+CONTRACTION_MAP = {
+"ain't": "is not",
+"aren't": "are not",
+"can't": "cannot",
+"can't've": "cannot have",
+"'cause": "because",
+"could've": "could have",
+"couldn't": "could not",
+"couldn't've": "could not have",
+"didn't": "did not",
+"doesn't": "does not",
+"don't": "do not",
+"hadn't": "had not",
+"hadn't've": "had not have",
+"hasn't": "has not",
+"haven't": "have not",
+"he'd": "he would",
+"he'd've": "he would have",
+"he'll": "he will",
+"he'll've": "he he will have",
+"he's": "he is",
+"how'd": "how did",
+"how'd'y": "how do you",
+"how'll": "how will",
+"how's": "how is",
+"I'd": "I would",
+"I'd've": "I would have",
+"I'll": "I will",
+"I'll've": "I will have",
+"I'm": "I am",
+"I've": "I have",
+"i'd": "i would",
+"i'd've": "i would have",
+"i'll": "i will",
+"i'll've": "i will have",
+"i'm": "i am",
+"i've": "i have",
+"isn't": "is not",
+"it'd": "it would",
+"it'd've": "it would have",
+"it'll": "it will",
+"it'll've": "it will have",
+"it's": "it is",
+"let's": "let us",
+"ma'am": "madam",
+"mayn't": "may not",
+"might've": "might have",
+"mightn't": "might not",
+"mightn't've": "might not have",
+"must've": "must have",
+"mustn't": "must not",
+"mustn't've": "must not have",
+"needn't": "need not",
+"needn't've": "need not have",
+"o'clock": "of the clock",
+"oughtn't": "ought not",
+"oughtn't've": "ought not have",
+"shan't": "shall not",
+"sha'n't": "shall not",
+"shan't've": "shall not have",
+"she'd": "she would",
+"she'd've": "she would have",
+"she'll": "she will",
+"she'll've": "she will have",
+"she's": "she is",
+"should've": "should have",
+"shouldn't": "should not",
+"shouldn't've": "should not have",
+"so've": "so have",
+"so's": "so as",
+"that'd": "that would",
+"that'd've": "that would have",
+"that's": "that is",
+"there'd": "there would",
+"there'd've": "there would have",
+"there's": "there is",
+"they'd": "they would",
+"they'd've": "they would have",
+"they'll": "they will",
+"they'll've": "they will have",
+"they're": "they are",
+"they've": "they have",
+"to've": "to have",
+"wasn't": "was not",
+"we'd": "we would",
+"we'd've": "we would have",
+"we'll": "we will",
+"we'll've": "we will have",
+"we're": "we are",
+"we've": "we have",
+"weren't": "were not",
+"what'll": "what will",
+"what'll've": "what will have",
+"what're": "what are",
+"what's": "what is",
+"what've": "what have",
+"when's": "when is",
+"when've": "when have",
+"where'd": "where did",
+"where's": "where is",
+"where've": "where have",
+"who'll": "who will",
+"who'll've": "who will have",
+"who's": "who is",
+"who've": "who have",
+"why's": "why is",
+"why've": "why have",
+"will've": "will have",
+"won't": "will not",
+"won't've": "will not have",
+"would've": "would have",
+"wouldn't": "would not",
+"wouldn't've": "would not have",
+"y'all": "you all",
+"y'all'd": "you all would",
+"y'all'd've": "you all would have",
+"y'all're": "you all are",
+"y'all've": "you all have",
+"you'd": "you would",
+"you'd've": "you would have",
+"you'll": "you will",
+"you'll've": "you will have",
+"you're": "you are",
+"you've": "you have"
+}
+
+# based on pages 137 of
+# Sarkar, D. (2019). Text Analytics with Python: A Practitioner's Guide to Natural Language Processing. Apress.
+def ExpandContractions(Text, ContractionMapping = CONTRACTION_MAP):
+    ContractionsPattern = re.compile("({})".format("|".join(ContractionMapping.keys())), flags = re.IGNORECASE | re.DOTALL)
+    def ExpandMatch(Contraction):
+        Match = Contraction.group(0)
+        FirstChar = Match[0]
+        ExpandedContraction = ContractionMapping.get(Match) \
+                              if ContractionMapping.get(Match) \
+                              else ContractionMapping.get(Match.lower())
+        ExpandedContraction = FirstChar+ExpandedContraction[1:]
+        return ExpandedContraction
+    ExpandedText = ContractionsPattern.sub(ExpandMatch, Text)
+    ExpandedText = re.sub("'", "", ExpandedText)
+    return ExpandedText
+    
+
+
+# Encapsulate the exploratory data analysis (EDA)
+def ExploratoryDataAnalysis():
+    #construct the historgram
+    plot.hist(AllDataTrain["rating"], density = False, bins = 10)
+    plot.ylabel('Rating (number of stars)')
+    plot.xlabel('Number of occurrences')
+    plot.title('Histogram all drug ratings')
+    plot.show() #need in order to show when running in the console
+
+    plot.hist(AllDataTrain["usefulCount"], density = False, bins = 50)
+    plot.ylabel('Useful count (number of likes)')
+    plot.xlabel('Number of occurrences')
+    plot.title('Histogram all drug useful counts')
+    plot.show() #need in order to show when running in the console
+
+    #n, mean, standard deviation, and five number summary (min, lower quartile, median, upper quartile, max)
+    print("Ratings description")
+    print(AllDataTrain["rating"].describe())
+    print("\nUseful count description")
+    print(AllDataTrain["usefulCount"].describe())
 
 #AllDataTest = pd.read_csv(".\\drugsComTest_raw.tsv", sep = "\t")
 
@@ -58,11 +230,21 @@ print(AllDataTrain["usefulCount"].describe())
         #    •   Normalize the text: This could include converting all text to lowercase to 
         #    ensure consistency.
 AllDataTrain["review"] = AllDataTrain["review"].str.lower()
+AllDataTrain["review"] = AllDataTrain["review"].apply(StripHtmlTags)
+AllDataTrain["review"] = AllDataTrain["review"].apply(ExpandContractions)
+AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveAccentedChars)
+AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveSpecialChars)
 print(str(AllDataTrain["review"].head(30)))
 
         # 3.  ​Text Tokenization:
         #    •   Tokenization involves splitting the text into individual words (tokens). 
         #    This is crucial for analyzing the text and for most feature extraction techniques.
+# only doing word tokenization. Do we need to do sentence?
+nltk.download('punkt')
+DefaultWordTokenizer = nltk.word_tokenize
+AllDataTrain["words"] = AllDataTrain["review"].apply(DefaultWordTokenizer)
+print(str(AllDataTrain["words"].head(30)))
+
         # 4.  ​Removing Stop Words:
         #    •   Stop words are common words (e.g., "the", "is", "at") that are usually 
         #    irrelevant for sentiment analysis. Removing these can reduce the dimensionality 
@@ -71,6 +253,9 @@ nltk.download('stopwords')
 StopWordList = nltk.corpus.stopwords.words("english")
 StopWordList.remove("no")    # keep negation
 StopWordList.remove("not")
+
+#TODO: FINISH!
+
         # 5.  ​Stemming and Lemmatization:
         #    •   These processes aim to reduce words to their base or root form. For example, 
         #    “running”, “runs”, “ran” all stem to “run”. It helps in generalizing different forms 
@@ -131,3 +316,5 @@ StopWordList.remove("not")
 #  into best practices and innovative approaches.
 # Additionally, libraries like scikit-learn for traditional ML approaches or tensorflow/keras for 
 # neural networks can be invaluable in this process.
+
+
