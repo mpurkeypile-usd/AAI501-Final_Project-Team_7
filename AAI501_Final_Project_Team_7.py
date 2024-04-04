@@ -357,19 +357,19 @@ from sklearn.linear_model import Ridge
 
 # clean data
 # print("Cleaning data...\n")
-# AllDataTrain["review"] = AllDataTrain["review"].str.lower()
-# AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
-# AllDataTrain["review"] = AllDataTrain["review"].apply(StripHtmlTags)
-# AllDataTrain["review"] = AllDataTrain["review"].apply(ExpandContractions)
-# AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveAccentedChars)
-# AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveSpecialChars)
+AllDataTrain["review"] = AllDataTrain["review"].str.lower()
+AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
+AllDataTrain["review"] = AllDataTrain["review"].apply(StripHtmlTags)
+AllDataTrain["review"] = AllDataTrain["review"].apply(ExpandContractions)
+AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveAccentedChars)
+AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveSpecialChars)
 
-# AllDataTest["review"] = AllDataTest["review"].str.lower()
-# AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
-# AllDataTest["review"] = AllDataTest["review"].apply(StripHtmlTags)
-# AllDataTest["review"] = AllDataTest["review"].apply(ExpandContractions)
-# AllDataTest["review"] = AllDataTest["review"].apply(RemoveAccentedChars)
-# AllDataTest["review"] = AllDataTest["review"].apply(RemoveSpecialChars)
+AllDataTest["review"] = AllDataTest["review"].str.lower()
+AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
+AllDataTest["review"] = AllDataTest["review"].apply(StripHtmlTags)
+AllDataTest["review"] = AllDataTest["review"].apply(ExpandContractions)
+AllDataTest["review"] = AllDataTest["review"].apply(RemoveAccentedChars)
+AllDataTest["review"] = AllDataTest["review"].apply(RemoveSpecialChars)
 
 CVTrainTest = CountVectorizer()
 
