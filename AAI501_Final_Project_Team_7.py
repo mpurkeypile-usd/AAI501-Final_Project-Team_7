@@ -3,6 +3,7 @@
 # University of San Diego
 # Spring 2024
 
+import string
 import pandas as pd
 import seaborn as sb
 import numpy as nump
@@ -355,40 +356,65 @@ def AnalysisTheHardWay():
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import Ridge
 
-# clean data
-# print("Cleaning data...\n")
-AllDataTrain["review"] = AllDataTrain["review"].str.lower()
-AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
-AllDataTrain["review"] = AllDataTrain["review"].apply(StripHtmlTags)
-AllDataTrain["review"] = AllDataTrain["review"].apply(ExpandContractions)
-AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveAccentedChars)
-AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveSpecialChars)
+def CleanData():
+    # clean data
+    # print("Cleaning data...\n")
+    AllDataTrain["review"] = AllDataTrain["review"].str.lower()
+    AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
+    AllDataTrain["review"] = AllDataTrain["review"].apply(StripHtmlTags)
+    AllDataTrain["review"] = AllDataTrain["review"].apply(ExpandContractions)
+    AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveAccentedChars)
+    AllDataTrain["review"] = AllDataTrain["review"].apply(RemoveSpecialChars)
 
-AllDataTest["review"] = AllDataTest["review"].str.lower()
-AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
-AllDataTest["review"] = AllDataTest["review"].apply(StripHtmlTags)
-AllDataTest["review"] = AllDataTest["review"].apply(ExpandContractions)
-AllDataTest["review"] = AllDataTest["review"].apply(RemoveAccentedChars)
-AllDataTest["review"] = AllDataTest["review"].apply(RemoveSpecialChars)
+    AllDataTest["review"] = AllDataTest["review"].str.lower()
+    AllDataTrain["review"] = AllDataTrain["review"].str.replace("\0", "")
+    AllDataTest["review"] = AllDataTest["review"].apply(StripHtmlTags)
+    AllDataTest["review"] = AllDataTest["review"].apply(ExpandContractions)
+    AllDataTest["review"] = AllDataTest["review"].apply(RemoveAccentedChars)
+    AllDataTest["review"] = AllDataTest["review"].apply(RemoveSpecialChars)
 
-CVTrainTest = CountVectorizer()
 
-# need to do across both data sets so transform() is on the same size
-AllDataTotal = AllDataTrain + AllDataTest
-CVTrainTest.fit(AllDataTotal["review"].values.astype("str"))
-CVTrainXform = CVTrainTest.transform(AllDataTrain["review"])
-CVTestXform = CVTrainTest.transform(AllDataTest["review"])
+# do conventional analysis.
+# TrainingSet: the dataframe to use for training
+# TestingSet: the dataframe to use for testing
+# SourceColumn: use this column to train and test both dataframes
+# ScoreColumn: this is the column to use for training to score, and with test to judge how good it is
+# ChartTitle: title to put on the chart
+# Return value: the coeficient of determination
+def AnalyzeConventional(TrainingSet : pd.DataFrame, TestingSet : pd.DataFrame, SourceColumn : str, \
+                        ScoreColumn : str, ChartTitle : str, ShowChart : bool) -> float:
+    CVTrainTest = CountVectorizer()
 
-TrainRidge = Ridge()
-TrainRidge.fit(CVTrainXform, AllDataTrain["rating"])
-PredictedTestValues = TrainRidge.predict(CVTestXform)
-print("CV coefficient of determination (rating): " + str(TrainRidge.score(CVTestXform, AllDataTest["rating"])))
+    # need to do across both data sets so transform() is on the same size
+    AllDataTotal = TrainingSet + TestingSet
+    CVTrainTest.fit(AllDataTotal[SourceColumn].values.astype("str"))
+    CVTrainXform = CVTrainTest.transform(TrainingSet[SourceColumn])
+    CVTestXform = CVTrainTest.transform(TestingSet[SourceColumn])
 
-plot.clf()    # clear what was there from before
-plot.hist(PredictedTestValues, bins = 10, label = "Predicted rating", alpha = 0.5)
-plot.hist(AllDataTest["rating"], bins = 10, label = "Ground truth rating", alpha = 0.5)
-plot.legend()
-plot.xlabel("Rating")
-plot.ylabel("Number of Occurrences")
-plot.title("Rating: predicted vs ground truth")
-plot.show()
+    TrainRidge = Ridge()
+    TrainRidge.fit(CVTrainXform, AllDataTrain[ScoreColumn])
+    PredictedTestValues = TrainRidge.predict(CVTestXform)
+    CoDet = TrainRidge.score(CVTestXform, AllDataTest[ScoreColumn])
+    print("CV coefficient of determination ( " + ScoreColumn + "): " + str(CoDet))
+
+    if ShowChart == True: 
+        plot.clf()    # clear what was there from before
+        plot.hist(PredictedTestValues, bins = 10, label = "Predicted rating", alpha = 0.5)
+        plot.hist(TestingSet[ScoreColumn], bins = 10, label = "Ground truth rating", alpha = 0.5)
+        plot.legend()
+        plot.xlabel(ScoreColumn)
+        plot.ylabel("Number of Occurrences")
+        plot.title(ChartTitle)
+        plot.show()
+    
+    return CoDet
+
+# main execution
+CleanData()
+UniqueDrugs = nump.unique(AllDataTrain["drugName"])
+
+# TODO: over 3,000 drugs- too many. Is there something else that is a smaller set?
+
+AnalyzeConventional(AllDataTrain, AllDataTest, "review", "rating", "All Drugs")
+
+# TODO: try neural nets on smaller sets
