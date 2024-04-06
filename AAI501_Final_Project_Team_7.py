@@ -3,7 +3,6 @@
 # University of San Diego
 # Spring 2024
 
-import string
 import pandas as pd
 import seaborn as sb
 import numpy as nump
@@ -14,6 +13,11 @@ import re
 import unicodedata
 from bs4 import BeautifulSoup
 from sklearn.linear_model import Ridge
+import tensorflow_hub as hub
+
+module_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+model = hub.load(module_url)
+
 
 # pull the data locally (data from http://archive.ics.uci.edu/dataset/462/drug+review+dataset+drugs+com)
 AllDataTrain = pd.read_csv(".\\drugsComTrain_raw.tsv", sep = "\t")
@@ -373,6 +377,20 @@ def CleanData():
     AllDataTest["review"] = AllDataTest["review"].apply(RemoveAccentedChars)
     AllDataTest["review"] = AllDataTest["review"].apply(RemoveSpecialChars)
 
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].str.lower()
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].str.replace("\0", "")
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].apply(StripHtmlTags)
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].apply(ExpandContractions)
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].apply(RemoveAccentedChars)
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].apply(RemoveSpecialChars)
+
+    AllDataTest["drugName"] = AllDataTest["drugName"].str.lower()
+    AllDataTrain["drugName"] = AllDataTrain["drugName"].str.replace("\0", "")
+    AllDataTest["drugName"] = AllDataTest["drugName"].apply(StripHtmlTags)
+    AllDataTest["drugName"] = AllDataTest["drugName"].apply(ExpandContractions)
+    AllDataTest["drugName"] = AllDataTest["drugName"].apply(RemoveAccentedChars)
+    AllDataTest["drugName"] = AllDataTest["drugName"].apply(RemoveSpecialChars)
+
 
 # do conventional analysis.
 # TrainingSet: the dataframe to use for training
@@ -380,9 +398,11 @@ def CleanData():
 # SourceColumn: use this column to train and test both dataframes
 # ScoreColumn: this is the column to use for training to score, and with test to judge how good it is
 # ChartTitle: title to put on the chart
-# Return value: the coeficient of determination
+# Return values: 
+#     the coeficient of determination
+#     the predicted values
 def AnalyzeConventional(TrainingSet : pd.DataFrame, TestingSet : pd.DataFrame, SourceColumn : str, \
-                        ScoreColumn : str, ChartTitle : str, ShowChart : bool) -> float:
+                        ScoreColumn : str, ShowChart : bool = False, ChartTitle : str = "") -> float:
     CVTrainTest = CountVectorizer()
 
     # need to do across both data sets so transform() is on the same size
@@ -392,10 +412,10 @@ def AnalyzeConventional(TrainingSet : pd.DataFrame, TestingSet : pd.DataFrame, S
     CVTestXform = CVTrainTest.transform(TestingSet[SourceColumn])
 
     TrainRidge = Ridge()
-    TrainRidge.fit(CVTrainXform, AllDataTrain[ScoreColumn])
+    TrainRidge.fit(CVTrainXform, TrainingSet[ScoreColumn])
     PredictedTestValues = TrainRidge.predict(CVTestXform)
-    CoDet = TrainRidge.score(CVTestXform, AllDataTest[ScoreColumn])
-    print("CV coefficient of determination ( " + ScoreColumn + "): " + str(CoDet))
+    CoDet = TrainRidge.score(CVTestXform, TestingSet[ScoreColumn])
+    #print("CV coefficient of determination ( " + ScoreColumn + "): " + str(CoDet))
 
     if ShowChart == True: 
         plot.clf()    # clear what was there from before
@@ -407,14 +427,92 @@ def AnalyzeConventional(TrainingSet : pd.DataFrame, TestingSet : pd.DataFrame, S
         plot.title(ChartTitle)
         plot.show()
     
-    return CoDet
+    return CoDet, PredictedTestValues
+
+
+# do neural net analsys
+# TrainingSet: the dataframe to use for training
+# TestingSet: the dataframe to use for testing
+# SourceColumn: use this column to train and test both dataframes
+# ScoreColumn: this is the column to use for training to score, and with test to judge how good it is
+# ChartTitle: title to put on the chart
+# Return values: 
+#     the coeficient of determination
+#     the predicted values
+def AnalyzeNeuralNet(TrainingSet : pd.DataFrame, TestingSet : pd.DataFrame, SourceColumn : str, \
+                        ScoreColumn : str, ShowChart : bool = False, ChartTitle : str = "") -> float:
+    
+    CVTrainXform = model(TrainingSet[SourceColumn])
+    CVTestXform = model(TestingSet[SourceColumn])
+
+    TrainRidge = Ridge()
+    TrainRidge.fit(CVTrainXform, TrainingSet[ScoreColumn])
+    PredictedTestValues = TrainRidge.predict(CVTestXform)
+    CoDet = TrainRidge.score(CVTestXform, TrainingSet[ScoreColumn])
+    #print("CV coefficient of determination ( " + ScoreColumn + "): " + str(CoDet))
+
+    if ShowChart == True: 
+        plot.clf()    # clear what was there from before
+        plot.hist(PredictedTestValues, bins = 10, label = "Predicted rating", alpha = 0.5)
+        plot.hist(TestingSet[ScoreColumn], bins = 10, label = "Ground truth rating", alpha = 0.5)
+        plot.legend()
+        plot.xlabel(ScoreColumn)
+        plot.ylabel("Number of Occurrences")
+        plot.title(ChartTitle)
+        plot.show()
+    
+    return CoDet, PredictedTestValues
+
 
 # main execution
+NUM_OF_DRUGS = 10
+
 CleanData()
-UniqueDrugs = nump.unique(AllDataTrain["drugName"])
 
-# TODO: over 3,000 drugs- too many. Is there something else that is a smaller set?
+# 3436 unique drugs, 885 unique conditions
+#UniqueConditions = nump.unique(AllDataTrain["condition"].values.astype("str"))
+UniqueDrugNames, NumUniqueDrugs = nump.unique(AllDataTrain["drugName"], return_counts = True)
+UniqueDrugs = pd.DataFrame({"drugName" : UniqueDrugNames, "count" : NumUniqueDrugs}).sort_values("count")
 
-AnalyzeConventional(AllDataTrain, AllDataTest, "review", "rating", "All Drugs")
+# Analyze all the drugs
+#AnalyzeConventional(AllDataTrain, AllDataTest, "review", "rating", "All Drugs")
 
-# TODO: try neural nets on smaller sets
+# conventional analysis
+for i in range(1, NUM_OF_DRUGS + 1):
+    CurDrugName = UniqueDrugs["drugName"].values[(-1 * i)]
+    CurDrugCount = UniqueDrugs["count"].values[(-1 * i)]
+    CurCoDet, CurTestResults = AnalyzeConventional( \
+        AllDataTrain[AllDataTrain["drugName"] == CurDrugName], \
+        AllDataTest[AllDataTest["drugName"] == CurDrugName], \
+       "review", "rating", "All Drugs")    
+    print(CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
+
+# neural net analysis
+for i in range(1, NUM_OF_DRUGS + 1):
+    CurDrugName = UniqueDrugs["drugName"].values[(-1 * i)]
+    CurDrugCount = UniqueDrugs["count"].values[(-1 * i)]
+    CurCoDet, CurTestResults = AnalyzeNeuralNet( \
+        AllDataTrain[AllDataTrain["drugName"] == CurDrugName], \
+        AllDataTest[AllDataTest["drugName"] == CurDrugName], \
+       "review", "rating", "All Drugs")    
+    print(CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
+
+
+
+# From Issa on April 3, 2024. Not looking at the conditions- so not including this cleanup
+# missing_values_summary = AllDataTrain.isnull().sum()
+# print("Missing Values Summary:\n")
+# max_column_width = max(len(column) for column in missing_values_summary.index)
+# for column, missing_count in missing_values_summary.items():
+#     print(f"{column.ljust(max_column_width)} : {missing_count} missing value(s)")
+
+# Missing Values Summary:
+
+# Unnamed: 0  : 0 missing value(s)
+# drugName    : 0 missing value(s)
+# condition   : 899 missing value(s)
+# review      : 0 missing value(s)
+# rating      : 0 missing value(s)
+# date        : 0 missing value(s)
+# usefulCount : 0 missing value(s)
+
