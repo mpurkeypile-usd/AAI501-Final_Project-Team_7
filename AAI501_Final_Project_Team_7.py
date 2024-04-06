@@ -471,33 +471,78 @@ CleanData()
 
 # 3436 unique drugs, 885 unique conditions
 #UniqueConditions = nump.unique(AllDataTrain["condition"].values.astype("str"))
-UniqueDrugNames, NumUniqueDrugs = nump.unique(AllDataTrain["drugName"], return_counts = True)
-UniqueDrugs = pd.DataFrame({"drugName" : UniqueDrugNames, "count" : NumUniqueDrugs}).sort_values("count")
+UniqueTrainingDrugNames, NumUniqueTrainingDrugs = nump.unique(AllDataTrain["drugName"], return_counts = True)
+UniqueTrainingDrugs = pd.DataFrame({"drugName" : UniqueTrainingDrugNames, "count" : NumUniqueTrainingDrugs}).sort_values("count")
+UniqueTestingDrugNames, NumUniqueTestingDrugs = nump.unique(AllDataTest["drugName"], return_counts = True)
+UniqueTestingDrugs = pd.DataFrame({"drugName" : UniqueTestingDrugNames, "count" : NumUniqueTestingDrugs}).sort_values("count")
 
 # Analyze all the drugs
-#AnalyzeConventional(AllDataTrain, AllDataTest, "review", "rating", "All Drugs")
+AnalyzeConventional(AllDataTrain, AllDataTest, "review", "rating", True, "All Drugs Conventional (rating)")
+AnalyzeConventional(AllDataTrain, AllDataTest, "review", "usefulCount", True, "All Drugs Conventional (usefulCount)")                    
 
 # conventional analysis
+print("")
 for i in range(1, NUM_OF_DRUGS + 1):
-    CurDrugName = UniqueDrugs["drugName"].values[(-1 * i)]
-    CurDrugCount = UniqueDrugs["count"].values[(-1 * i)]
+    CurTrainingDrugName = UniqueTrainingDrugs["drugName"].values[(-1 * i)]
+    CurTrainingDrugCount = UniqueTrainingDrugs["count"].values[(-1 * i)]
+    CurTestingDrugCount = UniqueTestingDrugs[UniqueTestingDrugs["drugName"] == CurTrainingDrugName].values[0, 1]
+
     CurCoDet, CurTestResults = AnalyzeConventional( \
-        AllDataTrain[AllDataTrain["drugName"] == CurDrugName], \
-        AllDataTest[AllDataTest["drugName"] == CurDrugName], \
+        AllDataTrain[AllDataTrain["drugName"] == CurTrainingDrugName], \
+        AllDataTest[AllDataTest["drugName"] == CurTrainingDrugName], \
        "review", "rating", "All Drugs")    
-    print("Conventional: " + CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
+    
+    print("Conventional (rating): " + CurTrainingDrugName + " (" + str(CurTrainingDrugCount) + \
+          " training instances, " + str(CurTestingDrugCount) \
+          + " testing instances) = " + str(CurCoDet))
+
+print("")
+for i in range(1, NUM_OF_DRUGS + 1):
+    CurTrainingDrugName = UniqueTrainingDrugs["drugName"].values[(-1 * i)]
+    CurTrainingDrugCount = UniqueTrainingDrugs["count"].values[(-1 * i)]
+    CurTestingDrugCount = UniqueTestingDrugs[UniqueTestingDrugs["drugName"] == CurTrainingDrugName].values[0, 1]
+
+    CurCoDet, CurTestResults = AnalyzeConventional( \
+        AllDataTrain[AllDataTrain["drugName"] == CurTrainingDrugName], \
+        AllDataTest[AllDataTest["drugName"] == CurTrainingDrugName], \
+       "review", "usefulCount", "All Drugs")    
+    
+    print("Conventional (usefulCount): " + CurTrainingDrugName + " (" + str(CurTrainingDrugCount) + \
+          " training instances, " + str(CurTestingDrugCount) \
+          + " testing instances) = " + str(CurCoDet))
 
 # neural net analysis
+print("")
 for i in range(1, NUM_OF_DRUGS + 1):
-    CurDrugName = UniqueDrugs["drugName"].values[(-1 * i)]
-    CurDrugCount = UniqueDrugs["count"].values[(-1 * i)]
+    CurTrainingDrugName = UniqueTrainingDrugs["drugName"].values[(-1 * i)]
+    CurTrainingDrugCount = UniqueTrainingDrugs["count"].values[(-1 * i)]
+    CurTestingDrugCount = UniqueTestingDrugs[UniqueTestingDrugs["drugName"] == CurTrainingDrugName].values[0, 1]
+
     CurCoDet, CurTestResults = AnalyzeNeuralNet( \
-        AllDataTrain[AllDataTrain["drugName"] == CurDrugName], \
-        AllDataTest[AllDataTest["drugName"] == CurDrugName], \
+        AllDataTrain[AllDataTrain["drugName"] == CurTrainingDrugName], \
+        AllDataTest[AllDataTest["drugName"] == CurTrainingDrugName], \
        "review", "rating", "All Drugs")    
-    print("Neural Net: " + CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
 
+    print("Neural net (rating): " + CurTrainingDrugName + " (" + str(CurTrainingDrugCount) + \
+          " training instances, " + str(CurTestingDrugCount) \
+          + " testing instances) = " + str(CurCoDet))
 
+print("")
+for i in range(1, NUM_OF_DRUGS + 1):
+    CurTrainingDrugName = UniqueTrainingDrugs["drugName"].values[(-1 * i)]
+    CurTrainingDrugCount = UniqueTrainingDrugs["count"].values[(-1 * i)]
+    CurTestingDrugCount = UniqueTestingDrugs[UniqueTestingDrugs["drugName"] == CurTrainingDrugName].values[0, 1]
+
+    CurCoDet, CurTestResults = AnalyzeNeuralNet( \
+        AllDataTrain[AllDataTrain["drugName"] == CurTrainingDrugName], \
+        AllDataTest[AllDataTest["drugName"] == CurTrainingDrugName], \
+       "review", "usefulCount", "All Drugs")    
+
+    print("Neural net (usefulCount): " + CurTrainingDrugName + " (" + str(CurTrainingDrugCount) + \
+          " training instances, " + str(CurTestingDrugCount) \
+          + " testing instances) = " + str(CurCoDet))
+
+print("")
 
 # From Issa on April 3, 2024. Not looking at the conditions- so not including this cleanup
 # missing_values_summary = AllDataTrain.isnull().sum()
