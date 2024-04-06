@@ -448,7 +448,7 @@ def AnalyzeNeuralNet(TrainingSet : pd.DataFrame, TestingSet : pd.DataFrame, Sour
     TrainRidge = Ridge()
     TrainRidge.fit(CVTrainXform, TrainingSet[ScoreColumn])
     PredictedTestValues = TrainRidge.predict(CVTestXform)
-    CoDet = TrainRidge.score(CVTestXform, TrainingSet[ScoreColumn])
+    CoDet = TrainRidge.score(CVTestXform, TestingSet[ScoreColumn])
     #print("CV coefficient of determination ( " + ScoreColumn + "): " + str(CoDet))
 
     if ShowChart == True: 
@@ -485,7 +485,7 @@ for i in range(1, NUM_OF_DRUGS + 1):
         AllDataTrain[AllDataTrain["drugName"] == CurDrugName], \
         AllDataTest[AllDataTest["drugName"] == CurDrugName], \
        "review", "rating", "All Drugs")    
-    print(CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
+    print("Conventional: " + CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
 
 # neural net analysis
 for i in range(1, NUM_OF_DRUGS + 1):
@@ -495,7 +495,7 @@ for i in range(1, NUM_OF_DRUGS + 1):
         AllDataTrain[AllDataTrain["drugName"] == CurDrugName], \
         AllDataTest[AllDataTest["drugName"] == CurDrugName], \
        "review", "rating", "All Drugs")    
-    print(CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
+    print("Neural Net: " + CurDrugName + " (" + str(CurDrugCount) + " training instances) = " + str(CurCoDet))
 
 
 
